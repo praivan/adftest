@@ -1,0 +1,1209 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-aruplabtest"
+		},
+		"AzureSqlDatabase1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabase1'"
+		},
+		"ADF ArupLabTest KV_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://adf-aruplabtest-kv.vault.azure.net/"
+		},
+		"ADLCh7Test_sasUri": {
+			"type": "secureString",
+			"metadata": "Secure string for 'sasUri' of 'ADLCh7Test'"
+		},
+		"ADF ArupLab Test Blob Storage_properties_typeProperties_connectionString_secretName": {
+			"type": "string",
+			"defaultValue": "adfaruptest001-connectionstring"
+		},
+		"SmartFoodsApiLinkedService_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://smartfood.azurewebsites.net/api/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/ADF ArupLabTest KV')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('ADF ArupLabTest KV_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ADLCh7Test')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"sasUri": "[parameters('ADLCh7Test_sasUri')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ArupLabTest-IR')]",
+			"type": "Microsoft.DataFactory/factories/integrationRuntimes",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "UK South",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 10,
+							"cleanup": false,
+							"customProperties": []
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ADF ArupLab Test Blob Storage')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "ADF ArupLabTest KV",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "[parameters('ADF ArupLab Test Blob Storage_properties_typeProperties_connectionString_secretName')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "ArupLabTest-IR",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/ArupLabTest-IR')]",
+				"[concat(variables('factoryId'), '/linkedServices/ADF ArupLabTest KV')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabase1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureSqlDatabase1_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "ArupLabTest-IR",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/ArupLabTest-IR')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartFoodsApiLinkedService')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "HttpServer",
+				"typeProperties": {
+					"url": "[parameters('SmartFoodsApiLinkedService_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				},
+				"connectVia": {
+					"referenceName": "ArupLabTest-IR",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/ArupLabTest-IR')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSQLTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"schema": {
+						"type": "string"
+					},
+					"table_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().schema",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartFoodsCustomerApiJson')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "SmartFoodsApiLinkedService",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"authCode": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "HttpServerLocation",
+						"relativeUrl": {
+							"value": "smartfoods?code=@{dataset().authCode}",
+							"type": "Expression"
+						}
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/SmartFoodsApiLinkedService')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartFoodsDelimitedTextBlob')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ADF ArupLab Test Blob Storage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"folder": {
+						"type": "string"
+					},
+					"filename": {
+						"type": "string"
+					},
+					"filetype": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@{dataset().filename}.@{dataset().filetype}",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().folder",
+							"type": "Expression"
+						},
+						"container": "smartfoodsstaging"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ADF ArupLab Test Blob Storage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartFoodsTransactionApiCsv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "SmartFoodsApiLinkedService",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"authCode": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "HttpServerLocation",
+						"relativeUrl": {
+							"value": "smartfoods?code=@{dataset().authCode}",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": false,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/SmartFoodsApiLinkedService')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartFoodCustomerApiToBlob')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "AKVUsername",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": true,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://adf-aruplabtest-kv.vault.azure.net/secrets/SmartFoodsRestAPIUsername/048ba240f39744e3bd94ed04adc9cd51?api-version=7.0",
+							"method": "GET",
+							"headers": {},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://vault.azure.net"
+							}
+						}
+					},
+					{
+						"name": "AKVPassword",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": true,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://adf-aruplabtest-kv.vault.azure.net/secrets/SmartFoodsRestAPIPassword/10b98931e36e4e77a82fa621a5f773d9?api-version=7.0",
+							"method": "GET",
+							"headers": {},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://vault.azure.net"
+							}
+						}
+					},
+					{
+						"name": "SmartFoodsLogin",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "AKVUsername",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "AKVPassword",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": true,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://smartfood.azurewebsites.net/api/SmartFoodsOauth",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "@json(concat('{\"username\":\"',activity('AKVUsername').output.value,'\",\"password\":\"',activity('AKVPassword').output.value,'\"'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SetAccessToken",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "SmartFoodsLogin",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "token",
+							"value": {
+								"value": "@activity('SmartFoodsLogin').output.token",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SmartFoodsCustomersToBlob",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "SetAccessToken",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "HttpReadSettings",
+									"requestMethod": "POST",
+									"requestBody": {
+										"value": "@{json(concat('{\"trans_date\": \"',pipeline().parameters.date,'\",\"dataDomain\" : \"customers\"}'))}",
+										"type": "Expression"
+									},
+									"requestTimeout": ""
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "SmartFoodsCustomerApiJson",
+								"type": "DatasetReference",
+								"parameters": {
+									"authCode": {
+										"value": "@variables('token')",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "SmartFoodsDelimitedTextBlob",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": "customers",
+									"filename": {
+										"value": "smartfoods_customers_@{replace(pipeline().parameters.date,'-','')}",
+										"type": "Expression"
+									},
+									"filetype": "csv"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"date": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"token": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2023-09-12T20:32:54Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SmartFoodsCustomerApiJson')]",
+				"[concat(variables('factoryId'), '/datasets/SmartFoodsDelimitedTextBlob')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartFoodTransactionApiToBlob')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "AKVUsername",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": true,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://adf-aruplabtest-kv.vault.azure.net/secrets/SmartFoodsRestAPIUsername/048ba240f39744e3bd94ed04adc9cd51?api-version=7.0",
+							"method": "GET",
+							"headers": {},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://vault.azure.net"
+							}
+						}
+					},
+					{
+						"name": "AKVPassword",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": true,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://adf-aruplabtest-kv.vault.azure.net/secrets/SmartFoodsRestAPIPassword/10b98931e36e4e77a82fa621a5f773d9?api-version=7.0",
+							"method": "GET",
+							"headers": {},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://vault.azure.net"
+							}
+						}
+					},
+					{
+						"name": "SmartFoodsLogin",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "AKVUsername",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "AKVPassword",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": true,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://smartfood.azurewebsites.net/api/SmartFoodsOauth",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "@json(concat('{\"username\":\"',activity('AKVUsername').output.value,'\",\"password\":\"',activity('AKVPassword').output.value,'\"'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SetAccessToken",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "SmartFoodsLogin",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "token",
+							"value": {
+								"value": "@activity('SmartFoodsLogin').output.token",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SmartFoodsTransactionsToBlob",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "SetAccessToken",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "HttpReadSettings",
+									"requestMethod": "POST",
+									"requestBody": {
+										"value": "@{json(concat('{\"trans_date\": \"',pipeline().parameters.date,'\",\"dataDomain\" : \"transactions\"}'))}",
+										"type": "Expression"
+									},
+									"requestTimeout": ""
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "SmartFoodsTransactionApiCsv",
+								"type": "DatasetReference",
+								"parameters": {
+									"authCode": {
+										"value": "@variables('token')",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "SmartFoodsDelimitedTextBlob",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": "transactions",
+									"filename": {
+										"value": "smartfoods_transactions_@{replace(pipeline().parameters.date,'-','')}",
+										"type": "Expression"
+									},
+									"filetype": "csv"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"date": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"token": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2023-09-13T11:26:43Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SmartFoodsTransactionApiCsv')]",
+				"[concat(variables('factoryId'), '/datasets/SmartFoodsDelimitedTextBlob')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartFoodsCustomerELT')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "SmartFoodsDelimitedTextBlob",
+								"type": "DatasetReference"
+							},
+							"name": "SmartFoodsCustomerStagingBlob"
+						},
+						{
+							"dataset": {
+								"referenceName": "AzureSQLTable",
+								"type": "DatasetReference"
+							},
+							"name": "SmartFoodsCustomerSQLDW"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "AzureSQLTable",
+								"type": "DatasetReference"
+							},
+							"name": "DBSink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "AddFirstNameLastName"
+						},
+						{
+							"name": "FixColumnNamesRemoveName"
+						},
+						{
+							"name": "MD5Hash"
+						},
+						{
+							"name": "CurrentRecordsOnly"
+						},
+						{
+							"name": "JoinStagingToDWDim"
+						},
+						{
+							"name": "SDC2Split"
+						},
+						{
+							"name": "SelectNewInsert"
+						},
+						{
+							"name": "Changed"
+						},
+						{
+							"name": "SelectChangedUpdate"
+						},
+						{
+							"name": "UpdateRecsBatchColumns"
+						},
+						{
+							"name": "SelectChangedInsert"
+						},
+						{
+							"name": "ALLInserts"
+						},
+						{
+							"name": "SurrogateKey"
+						},
+						{
+							"name": "AddMaxCustomerKey"
+						},
+						{
+							"name": "InsertRecsBatchColumns"
+						},
+						{
+							"name": "UnionInsertUpdates"
+						},
+						{
+							"name": "MarkRow"
+						}
+					],
+					"scriptLines": [
+						"parameters{",
+						"     MaxCustomerKey as integer (0),",
+						"     BatchDt as string (\"\")",
+						"}",
+						"source(output(",
+						"          loyalty_num as string,",
+						"          name as string,",
+						"          email as string,",
+						"          dob as date,",
+						"          address as string,",
+						"          city as string,",
+						"          state as string,",
+						"          postCode as string,",
+						"          membersince as date",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     rowUrlColumn: 'sourceLineage') ~> SmartFoodsCustomerStagingBlob",
+						"source(output(",
+						"          CustomerKey as long,",
+						"          LoyaltyNum as string,",
+						"          FirstName as string,",
+						"          LastName as string,",
+						"          City as string,",
+						"          State as string,",
+						"          Email as string,",
+						"          Address as string,",
+						"          PostCode as string,",
+						"          MemberSince as date,",
+						"          Dob as date,",
+						"          RecInsertDt as date,",
+						"          RecStartDt as date,",
+						"          RecEndDt as date,",
+						"          RecCurrInd as boolean,",
+						"          sourceLineage as string,",
+						"          RecMd5Hash as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SmartFoodsCustomerSQLDW",
+						"SmartFoodsCustomerStagingBlob derive(FirstName = split(name, \" \")[1],",
+						"          LastName = split(name, \" \")[2]) ~> AddFirstNameLastName",
+						"AddFirstNameLastName select(mapColumn(",
+						"          iLoyaltyNum = loyalty_num,",
+						"          iEmail = email,",
+						"          iDob = dob,",
+						"          iAddress = address,",
+						"          iCity = city,",
+						"          iState = state,",
+						"          iPostCode = postCode,",
+						"          iMemberSince = membersince,",
+						"          isourceLineage = sourceLineage,",
+						"          iFirstName = FirstName,",
+						"          iLastName = LastName",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> FixColumnNamesRemoveName",
+						"FixColumnNamesRemoveName derive(iRecMd5Hash = md5( iif(isNull(iEmail),'',toString(iEmail))+ ",
+						"iif(isNull(iDob),'',toString(iDob))+ ",
+						"iif(isNull(iAddress),'',toString(iAddress))+ ",
+						"iif(isNull(iCity),'',toString(iCity))+ ",
+						"iif(isNull(iState),'',toString(iState))+ ",
+						"iif(isNull(iPostCode),'',toString(iPostCode))+ ",
+						"iif(isNull(iMemberSince),'',toString(iMemberSince))+ ",
+						"iif(isNull(iFirstName),'',toString(iFirstName))+ ",
+						"iif(isNull(iLastName),'',toString(iLastName)))) ~> MD5Hash",
+						"SmartFoodsCustomerSQLDW filter(isNull(RecEndDt)) ~> CurrentRecordsOnly",
+						"MD5Hash, CurrentRecordsOnly join(iLoyaltyNum == LoyaltyNum,",
+						"     joinType:'left',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> JoinStagingToDWDim",
+						"JoinStagingToDWDim split(isNull(LoyaltyNum),",
+						"     !(isNull(LoyaltyNum)) && (iRecMd5Hash !=RecMd5Hash),",
+						"     !(isNull(LoyaltyNum)) && (iRecMd5Hash == RecMd5Hash),",
+						"     disjoint: false) ~> SDC2Split@(New, Changed, Unhanged)",
+						"SDC2Split@New select(mapColumn(",
+						"          LoyaltyNum = iLoyaltyNum,",
+						"          Email = iEmail,",
+						"          Dob = iDob,",
+						"          Address = iAddress,",
+						"          City = iCity,",
+						"          State = iState,",
+						"          PostCode = iPostCode,",
+						"          MemberSince = iMemberSince,",
+						"          sourceLineage = isourceLineage,",
+						"          FirstName = iFirstName,",
+						"          LastName = iLastName,",
+						"          RecMd5Hash = iRecMd5Hash",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> SelectNewInsert",
+						"JoinStagingToDWDim filter(!(isNull(LoyaltyNum)) && (iRecMd5Hash !=RecMd5Hash)) ~> Changed",
+						"Changed select(mapColumn(",
+						"          CustomerKey,",
+						"          LoyaltyNum,",
+						"          FirstName,",
+						"          LastName,",
+						"          City,",
+						"          State,",
+						"          Email,",
+						"          Address,",
+						"          PostCode,",
+						"          MemberSince,",
+						"          Dob,",
+						"          RecInsertDt,",
+						"          RecStartDt,",
+						"          sourceLineage,",
+						"          RecMd5Hash",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> SelectChangedUpdate",
+						"SelectChangedUpdate derive(RecEndDt = toDate($BatchDt, 'yyyy-MM-dd'),",
+						"          RecCurrInd = false()) ~> UpdateRecsBatchColumns",
+						"SDC2Split@Changed select(mapColumn(",
+						"          LoyaltyNum = iLoyaltyNum,",
+						"          Email = iEmail,",
+						"          Dob = iDob,",
+						"          Address = iAddress,",
+						"          City = iCity,",
+						"          State = iState,",
+						"          PostCode = iPostCode,",
+						"          MemberSince = iMemberSince,",
+						"          sourceLineage = isourceLineage,",
+						"          FirstName = iFirstName,",
+						"          LastName = iLastName,",
+						"          RecMd5Hash = iRecMd5Hash",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> SelectChangedInsert",
+						"SelectNewInsert, SelectChangedInsert union(byName: true)~> ALLInserts",
+						"ALLInserts keyGenerate(output(CustomerKey as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> SurrogateKey",
+						"SurrogateKey derive(CustomerKey = CustomerKey+$MaxCustomerKey) ~> AddMaxCustomerKey",
+						"AddMaxCustomerKey derive(RecInsertDt = currentDate(),",
+						"          RecCurrInd = true(),",
+						"          RecStartDt = toDate($BatchDt,'yyyy-MM-dd'),",
+						"          RecEndDt = toDate(toString(null()))) ~> InsertRecsBatchColumns",
+						"InsertRecsBatchColumns, UpdateRecsBatchColumns union(byName: true)~> UnionInsertUpdates",
+						"UnionInsertUpdates alterRow(updateIf(!isNull(RecEndDt)),",
+						"     insertIf(isNull(RecEndDt))) ~> MarkRow",
+						"MarkRow sink(allowSchemaDrift: true,",
+						"     validateSchema: true,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['CustomerKey'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError') ~> DBSink"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SmartFoodsDelimitedTextBlob')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSQLTable')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/InitialLoadSmartFoodAllfeedsApiToBlob')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LoopSmartFoodsDates",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "LookupDates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('LookupDates').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "RunSmartFoodCustomerApiToBlob",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "SmartFoodCustomerApiToBlob",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"date": {
+												"value": "@item().date",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "RunSmartFoodTransactionApiToBlob",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "SmartFoodTransactionApiToBlob",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"date": {
+												"value": "@item().date",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "LookupDates",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "SmartFoodsDelimitedTextBlob",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": "ref_data",
+									"filename": "dates",
+									"filetype": "csv"
+								}
+							},
+							"firstRowOnly": false
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"variables": {
+					"dates": {
+						"type": "Array",
+						"defaultValue": [
+							"2020-01-01",
+							"2020-01-02",
+							"2020-01-03",
+							"2020-01-04"
+						]
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2023-09-13T10:28:41Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/SmartFoodsDelimitedTextBlob')]",
+				"[concat(variables('factoryId'), '/pipelines/SmartFoodCustomerApiToBlob')]",
+				"[concat(variables('factoryId'), '/pipelines/SmartFoodTransactionApiToBlob')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartFoodsCustomerELTBlobToSql')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SmartFoodsCustomerELT",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "MaxCustomerKey",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "SmartFoodsCustomerELT",
+								"type": "DataFlowReference",
+								"parameters": {
+									"MaxCustomerKey": {
+										"value": "@activity('MaxCustomerKey').output.firstRow.maxSK",
+										"type": "Expression"
+									},
+									"BatchDt": {
+										"value": "'@{pipeline().parameters.BatchDt}'",
+										"type": "Expression"
+									}
+								},
+								"datasetParameters": {
+									"SmartFoodsCustomerStagingBlob": {
+										"folder": "customers",
+										"filename": {
+											"value": "smartfoods_customers_@{replace(pipeline().parameters.BatchDt,'-','')}",
+											"type": "Expression"
+										},
+										"filetype": "csv"
+									},
+									"SmartFoodsCustomerSQLDW": {
+										"schema": "smartfoodsdw",
+										"table_name": "customerdim"
+									},
+									"DBSink": {
+										"schema": "smartfoodsdw",
+										"table_name": "customerdim"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "MaxCustomerKey",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select coalesce(max(CustomerKey),0) maxSK from SmartFoodsDW.customerdim",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSQLTable",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema": "SmartFoodsDW",
+									"table_name": "customerdim"
+								}
+							},
+							"firstRowOnly": true
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"BatchDt": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2023-09-20T18:42:51Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/SmartFoodsCustomerELT')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSQLTable')]"
+			]
+		}
+	]
+}

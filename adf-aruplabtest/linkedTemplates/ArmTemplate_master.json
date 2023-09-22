@@ -1,0 +1,77 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-aruplabtest"
+		},
+		"AzureSqlDatabase1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabase1'"
+		},
+		"ADF ArupLab Test Blob Storage_properties_typeProperties_connectionString_secretName": {
+			"type": "string",
+			"defaultValue": "adfaruptest001-connectionstring"
+		},
+		"ADF ArupLabTest KV_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://adf-aruplabtest-kv.vault.azure.net/"
+		},
+		"ADLCh7Test_sasUri": {
+			"type": "secureString",
+			"metadata": "Secure string for 'sasUri' of 'ADLCh7Test'"
+		},
+		"SmartFoodsApiLinkedService_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://smartfood.azurewebsites.net/api/"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "adf-aruplabtest_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2018-02-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"AzureSqlDatabase1_connectionString": {
+						"value": "[parameters('AzureSqlDatabase1_connectionString')]"
+					},
+					"ADF ArupLabTest KV_properties_typeProperties_baseUrl": {
+						"value": "[parameters('ADF ArupLabTest KV_properties_typeProperties_baseUrl')]"
+					},
+					"ADLCh7Test_sasUri": {
+						"value": "[parameters('ADLCh7Test_sasUri')]"
+					},
+					"ADF ArupLab Test Blob Storage_properties_typeProperties_connectionString_secretName": {
+						"value": "[parameters('ADF ArupLab Test Blob Storage_properties_typeProperties_connectionString_secretName')]"
+					},
+					"SmartFoodsApiLinkedService_properties_typeProperties_url": {
+						"value": "[parameters('SmartFoodsApiLinkedService_properties_typeProperties_url')]"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
