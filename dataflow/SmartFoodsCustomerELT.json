@@ -1,0 +1,243 @@
+{
+	"name": "SmartFoodsCustomerELT",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "SmartFoodsDelimitedTextBlob",
+						"type": "DatasetReference"
+					},
+					"name": "SmartFoodsCustomerStagingBlob"
+				},
+				{
+					"dataset": {
+						"referenceName": "AzureSQLTable",
+						"type": "DatasetReference"
+					},
+					"name": "SmartFoodsCustomerSQLDW"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "AzureSQLTable",
+						"type": "DatasetReference"
+					},
+					"name": "DBSink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "AddFirstNameLastName"
+				},
+				{
+					"name": "FixColumnNamesRemoveName"
+				},
+				{
+					"name": "MD5Hash"
+				},
+				{
+					"name": "CurrentRecordsOnly"
+				},
+				{
+					"name": "JoinStagingToDWDim"
+				},
+				{
+					"name": "SDC2Split"
+				},
+				{
+					"name": "SelectNewInsert"
+				},
+				{
+					"name": "Changed"
+				},
+				{
+					"name": "SelectChangedUpdate"
+				},
+				{
+					"name": "UpdateRecsBatchColumns"
+				},
+				{
+					"name": "SelectChangedInsert"
+				},
+				{
+					"name": "ALLInserts"
+				},
+				{
+					"name": "SurrogateKey"
+				},
+				{
+					"name": "AddMaxCustomerKey"
+				},
+				{
+					"name": "InsertRecsBatchColumns"
+				},
+				{
+					"name": "UnionInsertUpdates"
+				},
+				{
+					"name": "MarkRow"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     MaxCustomerKey as integer (0),",
+				"     BatchDt as string (\"\")",
+				"}",
+				"source(output(",
+				"          loyalty_num as string,",
+				"          name as string,",
+				"          email as string,",
+				"          dob as date,",
+				"          address as string,",
+				"          city as string,",
+				"          state as string,",
+				"          postCode as string,",
+				"          membersince as date",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     rowUrlColumn: 'sourceLineage') ~> SmartFoodsCustomerStagingBlob",
+				"source(output(",
+				"          CustomerKey as long,",
+				"          LoyaltyNum as string,",
+				"          FirstName as string,",
+				"          LastName as string,",
+				"          City as string,",
+				"          State as string,",
+				"          Email as string,",
+				"          Address as string,",
+				"          PostCode as string,",
+				"          MemberSince as date,",
+				"          Dob as date,",
+				"          RecInsertDt as date,",
+				"          RecStartDt as date,",
+				"          RecEndDt as date,",
+				"          RecCurrInd as boolean,",
+				"          sourceLineage as string,",
+				"          RecMd5Hash as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> SmartFoodsCustomerSQLDW",
+				"SmartFoodsCustomerStagingBlob derive(FirstName = split(name, \" \")[1],",
+				"          LastName = split(name, \" \")[2]) ~> AddFirstNameLastName",
+				"AddFirstNameLastName select(mapColumn(",
+				"          iLoyaltyNum = loyalty_num,",
+				"          iEmail = email,",
+				"          iDob = dob,",
+				"          iAddress = address,",
+				"          iCity = city,",
+				"          iState = state,",
+				"          iPostCode = postCode,",
+				"          iMemberSince = membersince,",
+				"          isourceLineage = sourceLineage,",
+				"          iFirstName = FirstName,",
+				"          iLastName = LastName",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> FixColumnNamesRemoveName",
+				"FixColumnNamesRemoveName derive(iRecMd5Hash = md5( iif(isNull(iEmail),'',toString(iEmail))+ ",
+				"iif(isNull(iDob),'',toString(iDob))+ ",
+				"iif(isNull(iAddress),'',toString(iAddress))+ ",
+				"iif(isNull(iCity),'',toString(iCity))+ ",
+				"iif(isNull(iState),'',toString(iState))+ ",
+				"iif(isNull(iPostCode),'',toString(iPostCode))+ ",
+				"iif(isNull(iMemberSince),'',toString(iMemberSince))+ ",
+				"iif(isNull(iFirstName),'',toString(iFirstName))+ ",
+				"iif(isNull(iLastName),'',toString(iLastName)))) ~> MD5Hash",
+				"SmartFoodsCustomerSQLDW filter(isNull(RecEndDt)) ~> CurrentRecordsOnly",
+				"MD5Hash, CurrentRecordsOnly join(iLoyaltyNum == LoyaltyNum,",
+				"     joinType:'left',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> JoinStagingToDWDim",
+				"JoinStagingToDWDim split(isNull(LoyaltyNum),",
+				"     !(isNull(LoyaltyNum)) && (iRecMd5Hash !=RecMd5Hash),",
+				"     !(isNull(LoyaltyNum)) && (iRecMd5Hash == RecMd5Hash),",
+				"     disjoint: false) ~> SDC2Split@(New, Changed, Unhanged)",
+				"SDC2Split@New select(mapColumn(",
+				"          LoyaltyNum = iLoyaltyNum,",
+				"          Email = iEmail,",
+				"          Dob = iDob,",
+				"          Address = iAddress,",
+				"          City = iCity,",
+				"          State = iState,",
+				"          PostCode = iPostCode,",
+				"          MemberSince = iMemberSince,",
+				"          sourceLineage = isourceLineage,",
+				"          FirstName = iFirstName,",
+				"          LastName = iLastName,",
+				"          RecMd5Hash = iRecMd5Hash",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectNewInsert",
+				"JoinStagingToDWDim filter(!(isNull(LoyaltyNum)) && (iRecMd5Hash !=RecMd5Hash)) ~> Changed",
+				"Changed select(mapColumn(",
+				"          CustomerKey,",
+				"          LoyaltyNum,",
+				"          FirstName,",
+				"          LastName,",
+				"          City,",
+				"          State,",
+				"          Email,",
+				"          Address,",
+				"          PostCode,",
+				"          MemberSince,",
+				"          Dob,",
+				"          RecInsertDt,",
+				"          RecStartDt,",
+				"          sourceLineage,",
+				"          RecMd5Hash",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectChangedUpdate",
+				"SelectChangedUpdate derive(RecEndDt = toDate($BatchDt, 'yyyy-MM-dd'),",
+				"          RecCurrInd = false()) ~> UpdateRecsBatchColumns",
+				"SDC2Split@Changed select(mapColumn(",
+				"          LoyaltyNum = iLoyaltyNum,",
+				"          Email = iEmail,",
+				"          Dob = iDob,",
+				"          Address = iAddress,",
+				"          City = iCity,",
+				"          State = iState,",
+				"          PostCode = iPostCode,",
+				"          MemberSince = iMemberSince,",
+				"          sourceLineage = isourceLineage,",
+				"          FirstName = iFirstName,",
+				"          LastName = iLastName,",
+				"          RecMd5Hash = iRecMd5Hash",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectChangedInsert",
+				"SelectNewInsert, SelectChangedInsert union(byName: true)~> ALLInserts",
+				"ALLInserts keyGenerate(output(CustomerKey as long),",
+				"     startAt: 1L,",
+				"     stepValue: 1L) ~> SurrogateKey",
+				"SurrogateKey derive(CustomerKey = CustomerKey+$MaxCustomerKey) ~> AddMaxCustomerKey",
+				"AddMaxCustomerKey derive(RecInsertDt = currentDate(),",
+				"          RecCurrInd = true(),",
+				"          RecStartDt = toDate($BatchDt,'yyyy-MM-dd'),",
+				"          RecEndDt = toDate(toString(null()))) ~> InsertRecsBatchColumns",
+				"InsertRecsBatchColumns, UpdateRecsBatchColumns union(byName: true)~> UnionInsertUpdates",
+				"UnionInsertUpdates alterRow(updateIf(!isNull(RecEndDt)),",
+				"     insertIf(isNull(RecEndDt))) ~> MarkRow",
+				"MarkRow sink(allowSchemaDrift: true,",
+				"     validateSchema: true,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:['CustomerKey'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> DBSink"
+			]
+		}
+	}
+}

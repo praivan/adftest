@@ -1,0 +1,9 @@
+{
+	"name": "adf-aruplabtest",
+	"location": "uksouth",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "6e08d09b-fcfe-4d70-af68-f50a810e1930",
+		"tenantId": "7778a168-b2e0-4bf8-9630-1a789c3c0eac"
+	}
+}

@@ -1,0 +1,22 @@
+{
+	"name": "ADF ArupLab Test Blob Storage",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobStorage",
+		"typeProperties": {
+			"connectionString": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "ADF ArupLabTest KV",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "adfaruptest001-connectionstring"
+			}
+		},
+		"connectVia": {
+			"referenceName": "ArupLabTest-IR",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

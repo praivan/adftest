@@ -1,0 +1,17 @@
+{
+	"name": "SmartFoodsApiLinkedService",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "HttpServer",
+		"typeProperties": {
+			"url": "https://smartfood.azurewebsites.net/api/",
+			"enableServerCertificateValidation": true,
+			"authenticationType": "Anonymous"
+		},
+		"connectVia": {
+			"referenceName": "ArupLabTest-IR",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

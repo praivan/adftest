@@ -1,0 +1,11 @@
+{
+	"name": "ADF ArupLabTest KV",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://adf-aruplabtest-kv.vault.azure.net/"
+		}
+	}
+}
